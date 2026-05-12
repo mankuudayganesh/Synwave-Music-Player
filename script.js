@@ -1,12 +1,12 @@
 // Firebase Configuration (Replace with your own Firebase project)
 const firebaseConfig = {
-    apiKey: "AIzaSyD1Vg3ZjGYK1G7-1w9Ya3A8vqpH9dFTl6k",
-    authDomain: "syncwave-media.firebaseapp.com",
-    databaseURL: "https://syncwave-media-default-rtdb.firebaseio.com",
-    projectId: "syncwave-media",
-    storageBucket: "syncwave-media.appspot.com",
-    messagingSenderId: "884210395412",
-    appId: "1:884210395412:web:ad7f9e3c5b8a2d1e9f7c4b"
+  apiKey: "AIzaSyBfC73CfqFxRJhOtRn0MGdH1InEe0onfjw",
+  authDomain: "synwave-music-player.firebaseapp.com",
+  projectId: "synwave-music-player",
+  storageBucket: "synwave-music-player.firebasestorage.app",
+  messagingSenderId: "565924535502",
+  appId: "1:565924535502:web:bda29720e74160a5b1c49f",
+  measurementId: "G-Q3B0LEEX54"
 };
 
 // Initialize Firebase
