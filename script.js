@@ -1,7 +1,9 @@
 // Firebase Configuration (Replace with your own Firebase project)
+// Firebase Configuration (Fixed with databaseURL)
 const firebaseConfig = {
   apiKey: "AIzaSyBfC73CfqFxRJhOtRn0MGdH1InEe0onfjw",
   authDomain: "synwave-music-player.firebaseapp.com",
+  databaseURL: "https://synwave-music-player-default-rtdb.firebaseio.com",  // ← ADD THIS LINE
   projectId: "synwave-music-player",
   storageBucket: "synwave-music-player.firebasestorage.app",
   messagingSenderId: "565924535502",
