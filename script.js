@@ -1,9 +1,8 @@
-// Firebase Configuration (Replace with your own Firebase project)
-// Firebase Configuration (Fixed with databaseURL)
+// Firebase Configuration (CORRECTED - added databaseURL)
 const firebaseConfig = {
   apiKey: "AIzaSyBfC73CfqFxRJhOtRn0MGdH1InEe0onfjw",
   authDomain: "synwave-music-player.firebaseapp.com",
-  databaseURL: "https://synwave-music-player-default-rtdb.firebaseio.com",  // ← ADD THIS LINE
+  databaseURL: "https://synwave-music-player-default-rtdb.firebaseio.com",  // ← CRITICAL FIX
   projectId: "synwave-music-player",
   storageBucket: "synwave-music-player.firebasestorage.app",
   messagingSenderId: "565924535502",
@@ -14,6 +13,17 @@ const firebaseConfig = {
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
+
+// Test Firebase connection
+database.ref('.info/connected').on('value', (snap) => {
+    if (snap.val() === true) {
+        console.log("✅ Firebase Connected!");
+        document.getElementById('statusText').innerHTML = "Firebase Connected ✅";
+    } else {
+        console.log("❌ Firebase Disconnected");
+        document.getElementById('statusText').innerHTML = "Firebase Disconnected - Check domain";
+    }
+});
 
 // Global Variables
 let currentMode = 'host';
@@ -48,12 +58,10 @@ const playerContainer = document.getElementById('playerContainer');
 function extractVideoId(url) {
     if (!url) return null;
     
-    // If it's already a video ID (11 characters)
     if (url.match(/^[a-zA-Z0-9_-]{11}$/)) {
         return url;
     }
     
-    // YouTube URL patterns
     const patterns = [
         /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^&\n?#]+)/,
         /youtube\.com\/watch\?.*v=([^&\n?#]+)/
@@ -105,7 +113,6 @@ function onPlayerStateChange(event) {
     const state = event.data;
     
     if (currentMode === 'host') {
-        // Update playing state
         isPlaying = (state === YT.PlayerState.PLAYING);
         
         if (player && currentVideoId) {
@@ -149,7 +156,6 @@ function watchForMediaChanges() {
         
         console.log('Received media update:', mediaState);
         
-        // Load new video if changed
         if (mediaState.videoId !== currentVideoId) {
             currentVideoId = mediaState.videoId;
             loadVideoInPlayer(mediaState.videoId);
@@ -157,17 +163,14 @@ function watchForMediaChanges() {
             syncRoleSpan.textContent = '🔗 Syncing with host...';
         }
         
-        // Sync playback state and position
         setTimeout(() => {
             if (player && playerReady) {
-                // Sync play/pause
                 if (mediaState.isPlaying && player.getPlayerState() !== YT.PlayerState.PLAYING) {
                     player.playVideo();
                 } else if (!mediaState.isPlaying && player.getPlayerState() === YT.PlayerState.PLAYING) {
                     player.pauseVideo();
                 }
                 
-                // Sync time (if difference > 1.5 seconds)
                 const currentTime = player.getCurrentTime();
                 if (Math.abs(currentTime - mediaState.currentTime) > 1.5) {
                     player.seekTo(mediaState.currentTime, true);
@@ -188,8 +191,6 @@ function loadVideoInPlayer(videoId) {
     console.log('Loading video:', videoId);
     player.loadVideoById(videoId);
     currentVideoId = videoId;
-    
-    // Show player container
     playerContainer.style.display = 'block';
 }
 
@@ -212,22 +213,17 @@ function hostLoadVideo() {
     console.log('Loading video:', videoId);
     currentVideoId = videoId;
     
-    // Load in player
     if (player && playerReady) {
         player.loadVideoById(videoId);
         player.playVideo();
         isPlaying = true;
         
-        // Update UI
         currentVideoInfo.innerHTML = `🎬 Playing: ${videoId}`;
-        syncRoleSpan.textContent = '👑 Broadcasting to ${memberCount} members...';
         
-        // Broadcast to all joiners
         setTimeout(() => {
             broadcastMediaState(videoId, true, 0);
         }, 500);
     } else {
-        // Initialize player first
         initializePlayer();
         setTimeout(() => hostLoadVideo(), 1000);
     }
@@ -244,7 +240,6 @@ function setupPresence() {
     
     userStatusRef.onDisconnect().remove();
     
-    // Update member count
     const membersRef = database.ref(`rooms/${roomId}/members`);
     membersRef.on('value', (snapshot) => {
         const members = snapshot.val();
@@ -269,14 +264,12 @@ async function initHostMode() {
             active: true
         });
         
-        // Initialize members
         await roomRef.child(`members/${userId}`).set({
             name: userName,
             role: 'host',
             joinedAt: firebase.database.ServerValue.TIMESTAMP
         });
         
-        // Initialize empty media state
         await roomRef.child('mediaState').set({
             videoId: '',
             isPlaying: false,
@@ -290,10 +283,7 @@ async function initHostMode() {
         showStatus(`✅ Hosting room: ${roomId}`, true);
         syncRoleSpan.textContent = '👑 Host Mode - Ready to share video!';
         
-        // Initialize YouTube player
         initializePlayer();
-        
-        // Show host controls
         hostControls.style.display = 'block';
         
     } catch (error) {
@@ -307,14 +297,12 @@ async function initJoinMode() {
     try {
         const roomRef = database.ref(`rooms/${roomId}`);
         
-        // Check if room exists
         const snapshot = await roomRef.once('value');
         if (!snapshot.exists()) {
             alert('❌ Room does not exist! Ask the host to create it first.');
             return;
         }
         
-        // Join room
         await roomRef.child(`members/${userId}`).set({
             name: userName,
             role: 'member',
@@ -327,13 +315,9 @@ async function initJoinMode() {
         showStatus(`✅ Joined room: ${roomId}`, true);
         syncRoleSpan.textContent = '🔗 Waiting for host to play video...';
         
-        // Initialize YouTube player
         initializePlayer();
-        
-        // Start watching for media changes
         watchForMediaChanges();
         
-        // Check if there's already a video playing
         const mediaState = await roomRef.child('mediaState').once('value');
         if (mediaState.exists() && mediaState.val().videoId) {
             const state = mediaState.val();
@@ -353,7 +337,6 @@ async function disconnectFromRoom() {
     if (roomId && userId) {
         await database.ref(`rooms/${roomId}/members/${userId}`).remove();
         
-        // If host and no members left, clean up room
         if (currentMode === 'host') {
             const snapshot = await database.ref(`rooms/${roomId}/members`).once('value');
             const members = snapshot.val();
@@ -422,7 +405,6 @@ connectBtn.addEventListener('click', async () => {
         return;
     }
     
-    // Disconnect from previous room
     if (syncActive) {
         await disconnectFromRoom();
     }
@@ -449,7 +431,6 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
         btn.classList.add('active');
         currentMode = btn.dataset.mode;
         
-        // Reset UI
         currentVideoId = '';
         currentVideoInfo.innerHTML = '⚡ No video loaded';
         
