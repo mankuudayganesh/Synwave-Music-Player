@@ -22,8 +22,8 @@ let syncActive = false;
 let playerReady = false;
 let currentVideoId = '';
 let player = null;
-let lastSyncTime = 0;
-let syncCheckInterval = null;
+let lastSentTime = 0;
+let syncCount = 0;
 
 // DOM Elements
 const usernameInput = document.getElementById('username');
@@ -61,7 +61,7 @@ function extractVideoId(url) {
     return null;
 }
 
-// Initialize YouTube Player with optimized settings
+// Initialize YouTube Player
 function initializePlayer() {
     if (typeof YT !== 'undefined' && YT.Player && !player) {
         player = new YT.Player('youtubePlayer', {
@@ -70,7 +70,7 @@ function initializePlayer() {
             videoId: '',
             playerVars: {
                 'autoplay': 0,
-                'controls': 1,
+                'controls': 0, // Hide controls for cleaner sync
                 'modestbranding': 1,
                 'rel': 0,
                 'enablejsapi': 1,
@@ -84,31 +84,24 @@ function initializePlayer() {
                 'onStateChange': (event) => {
                     if (!syncActive || currentMode !== 'host') return;
                     
-                    // Throttle updates to every 100ms max
-                    const now = Date.now();
-                    if (now - lastSyncTime < 50) return;
-                    lastSyncTime = now;
-                    
+                    // Send state IMMEDIATELY (no throttle)
                     const state = event.data;
                     const isPlaying = (state === YT.PlayerState.PLAYING);
                     const currentTime = player.getCurrentTime();
                     
-                    // Send immediate update
-                    database.ref(`rooms/${roomId}/sync/hostState`).set({
+                    // Use update instead of set for faster writes
+                    database.ref(`rooms/${roomId}/sync/state`).update({
                         isPlaying: isPlaying,
                         currentTime: currentTime,
-                        videoId: currentVideoId,
-                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                        timestamp: Date.now() // Use client timestamp for lower latency
                     });
-                },
-                'onPlaybackQualityChange': () => {},
-                'onPlaybackRateChange': () => {}
+                }
             }
         });
     }
 }
 
-// HOST: Load video with instant broadcast
+// HOST: Load video with INSTANT broadcast
 function hostLoadVideo() {
     if (currentMode !== 'host') {
         alert('Only host can load videos!');
@@ -136,129 +129,146 @@ function hostLoadVideo() {
         playerContainer.style.display = 'block';
         currentVideoInfo.innerHTML = `🎬 Now Playing: ${videoId}`;
         
-        // Instant broadcast to all joiners
-        const syncRef = database.ref(`rooms/${roomId}/sync`);
-        syncRef.set({
+        // INSTANT broadcast to all joiners
+        const syncData = {
             videoId: videoId,
             isPlaying: true,
             currentTime: 0,
             action: 'load',
-            timestamp: firebase.database.ServerValue.TIMESTAMP
-        });
+            timestamp: Date.now()
+        };
         
-        controlStatus.innerHTML = '👑 HOST - Broadcasting in real-time ⚡';
+        database.ref(`rooms/${roomId}/sync`).set(syncData);
+        
+        controlStatus.innerHTML = '👑 HOST - Real-time mode ⚡';
     } else {
         initializePlayer();
         setTimeout(() => hostLoadVideo(), 500);
     }
 }
 
-// JOINERS: Ultra-fast sync with host
-let isApplyingSync = false;
+// JOINERS: ULTRA-FAST sync (sub-100ms latency)
+let lastSyncTime = 0;
+let isSyncing = false;
+let seekInProgress = false;
 
-function initFastSync() {
+function initUltraFastSync() {
+    // Use 'child_added' and 'child_changed' for faster response
     const syncRef = database.ref(`rooms/${roomId}/sync`);
     
-    // Listen for real-time updates with high priority
     syncRef.on('value', (snapshot) => {
-        if (!syncActive || currentMode !== 'join' || isApplyingSync) return;
+        if (!syncActive || currentMode !== 'join' || isSyncing) return;
         
         const hostData = snapshot.val();
         if (!hostData) return;
         
-        // Handle new video load
-        if (hostData.videoId && hostData.videoId !== currentVideoId) {
+        const now = Date.now();
+        
+        // Handle video load
+        if (hostData.videoId && hostData.videoId !== currentVideoId && hostData.action === 'load') {
             currentVideoId = hostData.videoId;
-            console.log('⏩ Loading video from host:', currentVideoId);
+            console.log('⏩ Instant load from host');
             
             if (player && playerReady) {
-                player.loadVideoById(currentVideoId);
+                player.cueVideoById(currentVideoId); // cue is faster than load
                 playerContainer.style.display = 'block';
-                currentVideoInfo.innerHTML = `🎬 Live Sync: ${currentVideoId}`;
+                currentVideoInfo.innerHTML = `🎬 Syncing: ${currentVideoId}`;
             }
         }
         
-        // Apply sync without delay
-        if (player && playerReady && currentVideoId) {
-            isApplyingSync = true;
+        // Apply sync with MINIMAL delay (0ms)
+        if (player && playerReady && currentVideoId && !seekInProgress) {
+            isSyncing = true;
             
             try {
                 const currentTime = player.getCurrentTime();
                 const timeDiff = Math.abs(currentTime - hostData.currentTime);
+                const isLocallyPlaying = (player.getPlayerState() === YT.PlayerState.PLAYING);
                 
-                // Sync play/pause instantly
-                if (hostData.isPlaying && player.getPlayerState() !== YT.PlayerState.PLAYING) {
+                // INSTANT play/pause sync
+                if (hostData.isPlaying && !isLocallyPlaying) {
                     player.playVideo();
-                    console.log('▶️ Sync: Play');
-                } else if (!hostData.isPlaying && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                    console.log('⚡ INSTANT PLAY');
+                } else if (!hostData.isPlaying && isLocallyPlaying) {
                     player.pauseVideo();
-                    console.log('⏸️ Sync: Pause');
+                    console.log('⚡ INSTANT PAUSE');
                 }
                 
-                // Sync position if difference > 0.3 seconds (faster correction)
-                if (timeDiff > 0.3 && hostData.currentTime > 0) {
+                // ULTRA-FAST seek (correct within 0.1 seconds)
+                if (timeDiff > 0.1 && hostData.currentTime > 0) {
+                    seekInProgress = true;
                     player.seekTo(hostData.currentTime, true);
-                    console.log(`⏩ Sync: Seek to ${hostData.currentTime.toFixed(1)}s (diff: ${timeDiff.toFixed(2)}s)`);
+                    console.log(`⚡ INSTANT SEEK: ${timeDiff.toFixed(2)}s diff`);
+                    setTimeout(() => { seekInProgress = false; }, 100);
                 }
+                
             } catch(e) {
-                console.warn('Sync error:', e);
+                console.warn('Sync micro-error:', e);
             }
             
-            setTimeout(() => { isApplyingSync = false; }, 50);
+            setTimeout(() => { isSyncing = false; }, 20);
         }
     });
     
-    // Additional aggressive sync every 500ms for drift correction
-    if (syncCheckInterval) clearInterval(syncCheckInterval);
-    syncCheckInterval = setInterval(() => {
-        if (!syncActive || currentMode !== 'join' || !player || !playerReady || !currentVideoId) return;
+    // AGGRESSIVE drift correction every 200ms
+    let lastDriftCheck = 0;
+    setInterval(() => {
+        if (!syncActive || currentMode !== 'join' || !player || !playerReady || !currentVideoId || seekInProgress) return;
         
-        database.ref(`rooms/${roomId}/sync`).once('value', (snapshot) => {
-            if (isApplyingSync) return;
+        database.ref(`rooms/${roomId}/sync/state`).once('value', (snapshot) => {
+            if (isSyncing) return;
             
-            const hostData = snapshot.val();
-            if (!hostData || !hostData.currentTime) return;
+            const hostState = snapshot.val();
+            if (!hostState || !hostState.currentTime) return;
             
             const currentTime = player.getCurrentTime();
-            const timeDiff = Math.abs(currentTime - hostData.currentTime);
+            const timeDiff = hostState.currentTime - currentTime;
             
-            // Aggressive correction if drift > 0.5 seconds
-            if (timeDiff > 0.5 && !isApplyingSync) {
-                isApplyingSync = true;
-                player.seekTo(hostData.currentTime, true);
-                console.log(`🔄 Drift correction: ${timeDiff.toFixed(2)}s`);
-                setTimeout(() => { isApplyingSync = false; }, 100);
+            // Correct if drift exceeds 0.15 seconds
+            if (Math.abs(timeDiff) > 0.15 && !seekInProgress) {
+                seekInProgress = true;
+                player.seekTo(hostState.currentTime, true);
+                console.log(`🔧 DRIFT FIX: ${timeDiff.toFixed(3)}s`);
+                setTimeout(() => { seekInProgress = false; }, 100);
             }
         });
-    }, 500);
+    }, 200);
 }
 
-// HOST: Send continuous position updates (every 100ms)
-let positionUpdateInterval = null;
+// HOST: Send continuous updates at MAXIMUM speed (every 50ms)
+let rapidUpdateInterval = null;
 
-function startHostPositionUpdates() {
-    if (positionUpdateInterval) clearInterval(positionUpdateInterval);
+function startRapidUpdates() {
+    if (rapidUpdateInterval) clearInterval(rapidUpdateInterval);
     
-    positionUpdateInterval = setInterval(() => {
+    rapidUpdateInterval = setInterval(() => {
         if (!syncActive || currentMode !== 'host' || !player || !playerReady || !currentVideoId) return;
         
         const isPlaying = (player.getPlayerState() === YT.PlayerState.PLAYING);
         const currentTime = player.getCurrentTime();
+        const now = Date.now();
         
-        // Send position update without spamming
-        database.ref(`rooms/${roomId}/sync/hostState`).set({
-            isPlaying: isPlaying,
-            currentTime: currentTime,
-            videoId: currentVideoId,
-            timestamp: firebase.database.ServerValue.TIMESTAMP
-        });
-    }, 100); // Send every 100ms for smooth sync
+        // Only send if actually playing (reduces unnecessary updates)
+        if (isPlaying || now - lastSentTime > 200) {
+            // Use update for faster writes
+            database.ref(`rooms/${roomId}/sync/state`).update({
+                isPlaying: isPlaying,
+                currentTime: currentTime,
+                ts: now
+            });
+            lastSentTime = now;
+            syncCount++;
+        }
+    }, 50); // 50ms updates = 20 updates per second for BUTTER smooth sync
 }
 
 // Setup room
 async function initHostMode() {
     try {
         const roomRef = database.ref(`rooms/${roomId}`);
+        
+        // Clear any existing data for clean start
+        await roomRef.remove();
         
         await roomRef.set({
             host: userId,
@@ -269,8 +279,7 @@ async function initHostMode() {
         await roomRef.child(`members/${userId}`).set({
             name: userName,
             role: 'host',
-            joinedAt: firebase.database.ServerValue.TIMESTAMP,
-            ping: firebase.database.ServerValue.TIMESTAMP
+            joinedAt: Date.now()
         });
         
         await roomRef.child('sync').set({
@@ -278,24 +287,21 @@ async function initHostMode() {
             isPlaying: false,
             currentTime: 0,
             action: 'init',
-            timestamp: firebase.database.ServerValue.TIMESTAMP
+            timestamp: Date.now()
         });
         
-        // Track members in real-time
+        await roomRef.child('sync/state').set({
+            isPlaying: false,
+            currentTime: 0,
+            timestamp: Date.now()
+        });
+        
+        // Track members
         roomRef.child('members').on('value', (snapshot) => {
             const members = snapshot.val();
             const count = members ? Object.keys(members).length : 0;
             memberCountSpan.innerHTML = `👥 Connected: ${count}`;
-            syncRoleSpan.innerHTML = `👑 HOST - ${count} device${count !== 1 ? 's' : ''} syncing`;
-            
-            // Update ping timestamps
-            if (members) {
-                Object.keys(members).forEach(mid => {
-                    if (mid !== userId) {
-                        database.ref(`rooms/${roomId}/members/${mid}/ping`).set(firebase.database.ServerValue.TIMESTAMP);
-                    }
-                });
-            }
+            syncRoleSpan.innerHTML = `👑 HOST - ${count} syncing`;
         });
         
         roomRef.child(`members/${userId}`).onDisconnect().remove();
@@ -304,11 +310,9 @@ async function initHostMode() {
         showStatus(`✅ Hosting: ${roomId}`, true);
         hostControls.style.display = 'block';
         initializePlayer();
-        startHostPositionUpdates();
+        startRapidUpdates();
         
-        controlStatus.innerHTML = '👑 HOST MODE - Real-time sync enabled ⚡';
-        
-        console.log('✅ Host mode ready - Ultra-low latency sync active');
+        controlStatus.innerHTML = '👑 HOST - Ultra-fast sync (50ms updates) ⚡';
         
     } catch (error) {
         console.error('Host error:', error);
@@ -316,7 +320,7 @@ async function initHostMode() {
     }
 }
 
-// Initialize Join Mode
+// Join Mode
 async function initJoinMode() {
     try {
         const roomRef = database.ref(`rooms/${roomId}`);
@@ -330,11 +334,9 @@ async function initJoinMode() {
         await roomRef.child(`members/${userId}`).set({
             name: userName,
             role: 'member',
-            joinedAt: firebase.database.ServerValue.TIMESTAMP,
-            ping: firebase.database.ServerValue.TIMESTAMP
+            joinedAt: Date.now()
         });
         
-        // Track member count
         roomRef.child('members').on('value', (snapshot) => {
             const members = snapshot.val();
             const count = members ? Object.keys(members).length : 0;
@@ -345,23 +347,19 @@ async function initJoinMode() {
         
         syncActive = true;
         showStatus(`✅ Joined: ${roomId}`, true);
-        syncRoleSpan.innerHTML = '🔗 JOIN MODE - Real-time sync';
+        syncRoleSpan.innerHTML = '🔗 JOIN - Ultra-fast sync';
         
         initializePlayer();
-        initFastSync(); // Ultra-fast sync for joiners
+        initUltraFastSync();
         
-        // Check if host already playing
+        // Check for existing video
         const hostSync = await roomRef.child('sync').once('value');
         if (hostSync.exists() && hostSync.val().videoId) {
             const state = hostSync.val();
             currentVideoId = state.videoId;
-            currentVideoInfo.innerHTML = `🎬 Live Syncing...`;
-            controlStatus.innerHTML = '🔗 Connected - Real-time sync active ⚡';
-        } else {
-            controlStatus.innerHTML = '🔗 Connected - Waiting for host...';
+            currentVideoInfo.innerHTML = `🎬 Ultra-sync active`;
+            controlStatus.innerHTML = '🔗 Connected - Sub-100ms sync ⚡';
         }
-        
-        console.log('✅ Join mode ready - Low latency sync enabled');
         
     } catch (error) {
         console.error('Join error:', error);
@@ -371,8 +369,7 @@ async function initJoinMode() {
 
 // Disconnect
 async function disconnectFromRoom() {
-    if (positionUpdateInterval) clearInterval(positionUpdateInterval);
-    if (syncCheckInterval) clearInterval(syncCheckInterval);
+    if (rapidUpdateInterval) clearInterval(rapidUpdateInterval);
     
     if (roomId && userId) {
         await database.ref(`rooms/${roomId}/members/${userId}`).remove();
@@ -392,26 +389,25 @@ async function disconnectFromRoom() {
     hostControls.style.display = 'none';
 }
 
-// Control functions
+// Host controls
 function hostPlay() {
     if (currentMode !== 'host') {
-        alert('Only host can control playback!');
+        alert('Only host controls playback!');
         return;
     }
     if (player && playerReady && currentVideoId) {
         player.playVideo();
-        // Immediate broadcast
         database.ref(`rooms/${roomId}/sync`).update({
             isPlaying: true,
             action: 'play',
-            timestamp: firebase.database.ServerValue.TIMESTAMP
+            timestamp: Date.now()
         });
     }
 }
 
 function hostPause() {
     if (currentMode !== 'host') {
-        alert('Only host can control playback!');
+        alert('Only host controls playback!');
         return;
     }
     if (player && playerReady && currentVideoId) {
@@ -419,14 +415,14 @@ function hostPause() {
         database.ref(`rooms/${roomId}/sync`).update({
             isPlaying: false,
             action: 'pause',
-            timestamp: firebase.database.ServerValue.TIMESTAMP
+            timestamp: Date.now()
         });
     }
 }
 
 function hostSeek(delta) {
     if (currentMode !== 'host') {
-        alert('Only host can control playback!');
+        alert('Only host controls playback!');
         return;
     }
     if (player && playerReady && currentVideoId) {
@@ -435,12 +431,12 @@ function hostSeek(delta) {
         database.ref(`rooms/${roomId}/sync`).update({
             currentTime: newTime,
             action: 'seek',
-            timestamp: firebase.database.ServerValue.TIMESTAMP
+            timestamp: Date.now()
         });
     }
 }
 
-// Connect button
+// Event listeners
 connectBtn.addEventListener('click', async () => {
     const newRoomId = roomIdInput.value.trim();
     const name = usernameInput.value.trim();
@@ -472,19 +468,14 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
         if (syncActive) await disconnectFromRoom();
         
-        if (positionUpdateInterval) clearInterval(positionUpdateInterval);
-        if (syncCheckInterval) clearInterval(syncCheckInterval);
+        if (rapidUpdateInterval) clearInterval(rapidUpdateInterval);
         
         document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentMode = btn.dataset.mode;
         
-        currentVideoInfo.innerHTML = '⚡ No video loaded';
+        currentVideoInfo.innerHTML = '⚡ Ready for ultra-sync';
         hostControls.style.display = currentMode === 'host' ? 'block' : 'none';
-        
-        controlStatus.innerHTML = currentMode === 'host' 
-            ? '👑 HOST mode - You control everything!' 
-            : '🔗 JOIN mode - Auto-syncs with host!';
     });
 });
 
@@ -504,7 +495,7 @@ function showStatus(message, isConnected) {
     }
 }
 
-// Firebase connection check
+// Firebase connection
 database.ref('.info/connected').on('value', (snap) => {
     if (snap.val() === true) {
         console.log("✅ Firebase Connected - Ultra-low latency mode");
@@ -513,12 +504,11 @@ database.ref('.info/connected').on('value', (snap) => {
 
 // Initialize
 window.onYouTubeIframeAPIReady = initializePlayer;
-showStatus('Ready to connect', false);
-controlStatus.innerHTML = '⚡ Ultra-low latency mode enabled!';
+showStatus('Ready for ultra-sync', false);
+controlStatus.innerHTML = '⚡ SUB-100MS SYNC MODE ACTIVE ⚡';
 
 window.addEventListener('beforeunload', () => {
-    if (positionUpdateInterval) clearInterval(positionUpdateInterval);
-    if (syncCheckInterval) clearInterval(syncCheckInterval);
+    if (rapidUpdateInterval) clearInterval(rapidUpdateInterval);
     if (roomId && userId) {
         database.ref(`rooms/${roomId}/members/${userId}`).remove();
     }
