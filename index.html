@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SyncWave - Auto YouTube Sync</title>
+    <title>SyncWave - Complete Host Control</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
@@ -12,37 +12,37 @@
     <div class="container">
         <div class="header">
             <h1>🎵 SyncWave</h1>
-            <p>Real-time YouTube Sync - No Manual URLs Needed!</p>
+            <p>Host Controls Everything - Everyone Syncs Perfectly!</p>
         </div>
 
         <div class="auth-section">
-            <input type="text" id="username" placeholder="Your Name" maxlength="20">
-            <input type="text" id="roomPassword" placeholder="Room Password (optional)">
+            <input type="text" id="username" placeholder="Your Name" autocomplete="off">
         </div>
 
         <div class="mode-section">
-            <button class="mode-btn active" data-mode="host">🎧 Host Mode</button>
-            <button class="mode-btn" data-mode="join">🔗 Join Mode</button>
+            <button class="mode-btn active" data-mode="host">👑 Host Mode (Full Control)</button>
+            <button class="mode-btn" data-mode="join">🔗 Join Mode (Auto-Sync)</button>
         </div>
 
         <div class="room-section">
             <input type="text" id="roomId" placeholder="Room ID (e.g., party2024)">
-            <button id="connectBtn" class="connect-btn">Connect to Room</button>
+            <button id="connectBtn">Connect to Room</button>
         </div>
 
-        <!-- Host Controls -->
+        <!-- Host Controls (Only visible to Host) -->
         <div id="hostControls" class="host-controls" style="display: none;">
+            <h3>🎬 Host Controls</h3>
             <div class="youtube-input-section">
-                <input type="text" id="youtubeLink" placeholder="Paste YouTube URL (e.g., https://youtube.com/watch?v=...)" value="https://www.youtube.com/watch?v=dQw4w9WgXcQ">
-                <button id="loadVideoBtn" class="load-video-btn">🎬 Load & Play Video</button>
+                <input type="text" id="youtubeLink" placeholder="Paste YouTube URL" value="https://www.youtube.com/watch?v=dQw4w9WgXcQ">
+                <button id="loadVideoBtn" class="load-video-btn">📺 Load & Play Video</button>
             </div>
             <div class="current-video-info" id="currentVideoInfo">
                 ⚡ No video loaded
             </div>
         </div>
 
-        <!-- YouTube Player -->
-        <div id="playerContainer" class="player-container">
+        <!-- YouTube Player (Shown to everyone) -->
+        <div id="playerContainer" class="player-container" style="display: none;">
             <div id="youtubePlayer"></div>
         </div>
 
@@ -51,22 +51,26 @@
                 <span class="status-dot"></span>
                 <span id="statusText">Disconnected</span>
             </div>
-            <div class="member-count" id="memberCount">👥 Members: 0</div>
+            <div id="memberCount">👥 Members: 0</div>
+            <div id="syncRole">⚡ Standby</div>
         </div>
 
+        <!-- Playback Controls (Everyone can see, but only Host's actions matter) -->
         <div class="control-card">
             <div class="control-buttons">
-                <button id="playPauseBtn" class="ctrl-btn">⏯️ Play/Pause</button>
+                <button id="playPauseBtn" class="ctrl-btn">▶️ Play</button>
+                <button id="pauseBtn" class="ctrl-btn">⏸️ Pause</button>
                 <button id="seekBackBtn" class="ctrl-btn">⏪ -10s</button>
                 <button id="seekFwdBtn" class="ctrl-btn">⏩ +10s</button>
             </div>
-            <div class="sync-status" id="syncRole">⚡ Standby</div>
+            <div class="sync-status" id="controlStatus">💡 Host controls all playback</div>
         </div>
 
         <div class="info-text">
-            💡 <strong>How it works:</strong><br>
-            Host: Paste YouTube link → Click Load → Video plays<br>
-            Joiners: Auto-open same video and sync instantly!
+            🔥 <strong>How it works:</strong><br>
+            • <strong>HOST:</strong> Loads video, controls Play/Pause/Seek - Everyone follows!<br>
+            • <strong>JOINERS:</strong> Just join the room - Video auto-syncs with Host!<br>
+            • <strong>Perfect Sync:</strong> Every action is mirrored in real-time!
         </div>
     </div>
 
