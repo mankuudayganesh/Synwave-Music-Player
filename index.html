@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SyncWave - Auto YouTube Sync</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎵 SyncWave</h1>
+            <p>Real-time YouTube Sync - No Manual URLs Needed!</p>
+        </div>
+
+        <div class="auth-section">
+            <input type="text" id="username" placeholder="Your Name" maxlength="20">
+            <input type="text" id="roomPassword" placeholder="Room Password (optional)">
+        </div>
+
+        <div class="mode-section">
+            <button class="mode-btn active" data-mode="host">🎧 Host Mode</button>
+            <button class="mode-btn" data-mode="join">🔗 Join Mode</button>
+        </div>
+
+        <div class="room-section">
+            <input type="text" id="roomId" placeholder="Room ID (e.g., party2024)">
+            <button id="connectBtn" class="connect-btn">Connect to Room</button>
+        </div>
+
+        <!-- Host Controls -->
+        <div id="hostControls" class="host-controls" style="display: none;">
+            <div class="youtube-input-section">
+                <input type="text" id="youtubeLink" placeholder="Paste YouTube URL (e.g., https://youtube.com/watch?v=...)" value="https://www.youtube.com/watch?v=dQw4w9WgXcQ">
+                <button id="loadVideoBtn" class="load-video-btn">🎬 Load & Play Video</button>
+            </div>
+            <div class="current-video-info" id="currentVideoInfo">
+                ⚡ No video loaded
+            </div>
+        </div>
+
+        <!-- YouTube Player -->
+        <div id="playerContainer" class="player-container">
+            <div id="youtubePlayer"></div>
+        </div>
+
+        <div class="status-card">
+            <div class="status-indicator">
+                <span class="status-dot"></span>
+                <span id="statusText">Disconnected</span>
+            </div>
+            <div class="member-count" id="memberCount">👥 Members: 0</div>
+        </div>
+
+        <div class="control-card">
+            <div class="control-buttons">
+                <button id="playPauseBtn" class="ctrl-btn">⏯️ Play/Pause</button>
+                <button id="seekBackBtn" class="ctrl-btn">⏪ -10s</button>
+                <button id="seekFwdBtn" class="ctrl-btn">⏩ +10s</button>
+            </div>
+            <div class="sync-status" id="syncRole">⚡ Standby</div>
+        </div>
+
+        <div class="info-text">
+            💡 <strong>How it works:</strong><br>
+            Host: Paste YouTube link → Click Load → Video plays<br>
+            Joiners: Auto-open same video and sync instantly!
+        </div>
+    </div>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="script.js"></script>
+</body>
+</html>

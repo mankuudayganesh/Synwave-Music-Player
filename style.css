@@ -1,0 +1,319 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 30px;
+    padding: 30px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.header h1 {
+    font-size: 2.5em;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 10px;
+}
+
+.header p {
+    color: #666;
+    font-size: 0.9em;
+}
+
+.auth-section {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.auth-section input {
+    flex: 1;
+    padding: 12px 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.auth-section input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.mode-section {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.mode-btn {
+    flex: 1;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    background: white;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    color: #666;
+}
+
+.mode-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-color: transparent;
+    transform: scale(1.02);
+}
+
+.room-section {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 25px;
+}
+
+.room-section input {
+    flex: 1;
+    padding: 12px 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    font-size: 14px;
+}
+
+.connect-btn {
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.connect-btn:hover {
+    transform: translateY(-2px);
+}
+
+.host-controls {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.youtube-input-section {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.youtube-input-section input {
+    flex: 1;
+    padding: 12px 15px;
+    border: 2px solid #ddd;
+    border-radius: 12px;
+    font-size: 14px;
+    font-family: monospace;
+}
+
+.youtube-input-section input:focus {
+    outline: none;
+    border-color: #ff0000;
+}
+
+.load-video-btn {
+    padding: 12px 24px;
+    background: #ff0000;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+}
+
+.load-video-btn:hover {
+    transform: translateY(-2px);
+    background: #cc0000;
+    box-shadow: 0 5px 15px rgba(255, 0, 0, 0.3);
+}
+
+.current-video-info {
+    background: white;
+    padding: 12px;
+    border-radius: 10px;
+    text-align: center;
+    color: #666;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.player-container {
+    margin-bottom: 20px;
+    border-radius: 15px;
+    overflow: hidden;
+    background: #000;
+    aspect-ratio: 16/9;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+}
+
+#youtubePlayer {
+    width: 100%;
+    height: 100%;
+}
+
+.status-card {
+    background: #f8f9fa;
+    border-radius: 15px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ccc;
+    transition: all 0.3s;
+}
+
+.status-dot.active {
+    background: #4caf50;
+    box-shadow: 0 0 8px #4caf50;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+#statusText {
+    font-weight: 600;
+    color: #333;
+}
+
+.member-count {
+    color: #666;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.control-card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.control-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.ctrl-btn {
+    flex: 1;
+    padding: 12px;
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #667eea;
+}
+
+.ctrl-btn:hover {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.ctrl-btn:active {
+    transform: scale(0.95);
+}
+
+.sync-status {
+    text-align: center;
+    font-size: 12px;
+    color: #999;
+    padding: 8px;
+    background: white;
+    border-radius: 10px;
+}
+
+.info-text {
+    text-align: center;
+    font-size: 12px;
+    color: #999;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+    .container {
+        padding: 20px;
+    }
+    
+    .auth-section,
+    .mode-section,
+    .room-section,
+    .youtube-input-section {
+        flex-direction: column;
+    }
+    
+    .control-buttons {
+        flex-direction: column;
+    }
+    
+    .load-video-btn {
+        width: 100%;
+    }
+}
